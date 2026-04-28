@@ -1,0 +1,11 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+logs/
+data/state.json
+dist/
+*.tar.gz
+*.zip
+.venv/
+venv/

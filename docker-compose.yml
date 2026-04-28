@@ -1,0 +1,19 @@
+version: "3.9"
+
+services:
+  copytrader:
+    build: .
+    container_name: binance-copytrader-pro
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"

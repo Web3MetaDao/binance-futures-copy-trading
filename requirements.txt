@@ -1,0 +1,12 @@
+# 依赖版本已锁定，防止供应链风险（审计修复 FIX-17）
+requests>=2.31.0,<3.0
+python-dotenv>=1.0.0,<2.0
+flask>=3.0.0,<4.0
+flask-cors>=4.0.0,<5.0
+pandas>=2.1.0,<3.0
+numpy>=1.26.0,<2.0
+ccxt>=4.2.0,<5.0
+pytz>=2024.1
+schedule>=1.2.0,<2.0
+python-telegram-bot>=20.7,<21.0
+gunicorn>=21.2.0,<22.0

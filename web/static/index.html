@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>币安跟单系统 Pro — 控制面板</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0d1117; --card: #161b22; --border: #30363d;
+    --text: #e6edf3; --muted: #8b949e; --green: #3fb950;
+    --red: #f85149; --yellow: #d29922; --blue: #58a6ff;
+    --purple: #bc8cff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; font-size: 14px; }
+  header { background: var(--card); border-bottom: 1px solid var(--border); padding: 14px 24px;
+    display: flex; align-items: center; justify-content: space-between; }
+  header h1 { font-size: 18px; font-weight: 600; color: var(--blue); }
+  .badge { padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+  .badge.running { background: #1a3a1a; color: var(--green); }
+  .badge.stopped { background: #3a1a1a; color: var(--red); }
+  .badge.circuit { background: #3a2a1a; color: var(--yellow); }
+  .container { max-width: 1400px; margin: 0 auto; padding: 20px 24px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .grid-3 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .card h3 { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .card .value { font-size: 24px; font-weight: 700; }
+  .card .sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .green { color: var(--green); } .red { color: var(--red); } .yellow { color: var(--yellow); } .blue { color: var(--blue); }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 8px 12px; font-size: 11px; color: var(--muted); text-transform: uppercase;
+    border-bottom: 1px solid var(--border); }
+  td { padding: 8px 12px; border-bottom: 1px solid #1c2128; font-size: 13px; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #1c2128; }
+  .section-title { font-size: 15px; font-weight: 600; margin-bottom: 12px; color: var(--text); }
+  .chart-wrap { position: relative; height: 220px; }
+  .tab-bar { display: flex; gap: 4px; margin-bottom: 12px; }
+  .tab { padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--muted);
+    background: transparent; border: 1px solid var(--border); }
+  .tab.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .config-item label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .config-item input, .config-item select {
+    width: 100%; background: #0d1117; border: 1px solid var(--border); color: var(--text);
+    padding: 6px 10px; border-radius: 6px; font-size: 13px; }
+  .btn { padding: 8px 18px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; }
+  .btn-primary { background: var(--blue); color: #fff; }
+  .btn-primary:hover { background: #4a9eff; }
+  .signal-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .signal-long { background: #1a3a1a; color: var(--green); }
+  .signal-short { background: #3a1a1a; color: var(--red); }
+  .scroll-table { max-height: 320px; overflow-y: auto; }
+  #toast { position: fixed; bottom: 24px; right: 24px; background: var(--card); border: 1px solid var(--border);
+    padding: 12px 20px; border-radius: 8px; font-size: 13px; display: none; z-index: 999; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🚀 币安跟单系统 Pro</h1>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <span id="last-update" style="color:var(--muted);font-size:12px;"></span>
+    <span id="status-badge" class="badge stopped">离线</span>
+  </div>
+</header>
+
+<div class="container">
+  <!-- 统计卡片 -->
+  <div class="grid-4">
+    <div class="card">
+      <h3>账户余额</h3>
+      <div class="value blue" id="balance">--</div>
+      <div class="sub">USDT 可用</div>
+    </div>
+    <div class="card">
+      <h3>总收益率</h3>
+      <div class="value" id="total-return">--</div>
+      <div class="sub">累计</div>
+    </div>
+    <div class="card">
+      <h3>夏普率</h3>
+      <div class="value" id="sharpe">--</div>
+      <div class="sub">目标 1.5~3.0</div>
+    </div>
+    <div class="card">
+      <h3>盈亏比</h3>
+      <div class="value" id="pl-ratio">--</div>
+      <div class="sub">目标 1.5~3.0</div>
+    </div>
+  </div>
+
+  <div class="grid-4" style="margin-bottom:20px;">
+    <div class="card">
+      <h3>胜率</h3>
+      <div class="value green" id="win-rate">--</div>
+      <div class="sub" id="sample-count">样本 0 笔</div>
+    </div>
+    <div class="card">
+      <h3>当前持仓数</h3>
+      <div class="value blue" id="pos-count">--</div>
+      <div class="sub">合约仓位</div>
+    </div>
+    <div class="card">
+      <h3>信号数量</h3>
+      <div class="value yellow" id="signal-count">--</div>
+      <div class="sub">本轮聚合</div>
+    </div>
+    <div class="card">
+      <h3>熔断状态</h3>
+      <div class="value" id="circuit">--</div>
+      <div class="sub">最大回撤保护</div>
+    </div>
+  </div>
+
+  <!-- 收益曲线 + 信号 -->
+  <div class="grid-3">
+    <div class="card">
+      <div class="section-title">收益曲线（近期交易 PnL）</div>
+      <div class="chart-wrap"><canvas id="equity-chart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="section-title">当前聚合信号</div>
+      <div class="scroll-table">
+        <table>
+          <thead><tr><th>交易对</th><th>方向</th><th>置信度</th><th>来源</th></tr></thead>
+          <tbody id="signals-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 持仓 + 日志 -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="section-title">当前持仓</div>
+      <div class="scroll-table">
+        <table>
+          <thead><tr><th>交易对</th><th>方向</th><th>数量</th><th>开仓价</th><th>标记价</th><th>未实现PnL</th></tr></thead>
+          <tbody id="positions-table"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-title">最近交易日志</div>
+      <div class="scroll-table">
+        <table>
+          <thead><tr><th>时间</th><th>操作</th><th>交易对</th><th>方向</th><th>价格</th><th>PnL</th></tr></thead>
+          <tbody id="trades-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 配置面板 -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="section-title">参数配置（运行时生效）</div>
+    <div style="margin-bottom:12px;">
+      <input type="password" id="web-secret" placeholder="管理密钥 (WEB_SECRET)" style="background:#0d1117;border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:260px;">
+    </div>
+    <div class="config-grid" id="config-form"></div>
+    <div style="margin-top:14px;display:flex;gap:10px;">
+      <button class="btn btn-primary" onclick="saveConfig()">保存配置</button>
+      <button class="btn" style="background:var(--border);color:var(--text);" onclick="loadConfig()">刷新配置</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const CONFIG_FIELDS = [
+  {key:"CAPITAL_RATIO", label:"资金比例", type:"number", step:"0.01"},
+  {key:"RISK_MULTIPLIER", label:"风险倍数", type:"number", step:"0.1"},
+  {key:"MAX_NOTIONAL_PER_SYMBOL", label:"单币最大名义仓位(USDT)", type:"number", step:"10"},
+  {key:"MAX_TOTAL_NOTIONAL", label:"总最大名义仓位(USDT)", type:"number", step:"100"},
+  {key:"STOP_LOSS_PCT", label:"止损比例", type:"number", step:"0.01"},
+  {key:"TAKE_PROFIT_PCT", label:"止盈比例", type:"number", step:"0.01"},
+  {key:"MAX_DRAWDOWN_PCT", label:"最大回撤熔断比例", type:"number", step:"0.01"},
+  {key:"SMART_MONEY_MIN_SCORE", label:"Smart Money 最低分", type:"number", step:"0.05"},
+  {key:"FIXED_FOLLOWER_NOTIONAL_USDT", label:"固定跟单名义仓位(USDT)", type:"number", step:"10"},
+  {key:"COMPOUND_REINVEST_RATIO", label:"复利再投比例", type:"number", step:"0.1"},
+  {key:"POLL_INTERVAL", label:"轮询间隔(秒)", type:"number", step:"5"},
+  {key:"SMART_MONEY_ENABLED", label:"Smart Money 开关", type:"bool"},
+  {key:"FIXED_FOLLOWER_ENABLED", label:"固定跟单员模式", type:"bool"},
+  {key:"COMPOUND_ENABLED", label:"复利模式", type:"bool"},
+  {key:"TELEGRAM_ENABLED", label:"Telegram 通知", type:"bool"},
+];
+
+let equityChart = null;
+
+// 初始化配置表单
+function initConfigForm() {
+  const form = document.getElementById('config-form');
+  form.innerHTML = CONFIG_FIELDS.map(f => {
+    if (f.type === 'bool') {
+      return `<div class="config-item"><label>${f.label}</label>
+        <select id="cfg_${f.key}"><option value="true">开启</option><option value="false">关闭</option></select></div>`;
+    }
+    return `<div class="config-item"><label>${f.label}</label>
+      <input type="number" id="cfg_${f.key}" step="${f.step||'any'}"></div>`;
+  }).join('');
+}
+
+async function loadConfig() {
+  try {
+    const r = await fetch('/api/config');
+    const cfg = await r.json();
+    CONFIG_FIELDS.forEach(f => {
+      const el = document.getElementById('cfg_' + f.key);
+      if (!el) return;
+      if (f.type === 'bool') el.value = cfg[f.key] ? 'true' : 'false';
+      else el.value = cfg[f.key] ?? '';
+    });
+  } catch(e) { showToast('加载配置失败: ' + e.message, 'red'); }
+}
+
+async function saveConfig() {
+  const secret = document.getElementById('web-secret').value;
+  const data = {};
+  CONFIG_FIELDS.forEach(f => {
+    const el = document.getElementById('cfg_' + f.key);
+    if (!el) return;
+    if (f.type === 'bool') data[f.key] = el.value === 'true';
+    else data[f.key] = parseFloat(el.value);
+  });
+  try {
+    const r = await fetch('/api/config', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','X-Secret':secret},
+      body: JSON.stringify(data)
+    });
+    if (r.ok) showToast('配置已保存', 'green');
+    else showToast('保存失败: ' + r.status, 'red');
+  } catch(e) { showToast('保存失败: ' + e.message, 'red'); }
+}
+
+function showToast(msg, color='blue') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  t.style.color = `var(--${color})`;
+  setTimeout(() => t.style.display = 'none', 3000);
+}
+
+function fmt(v, decimals=2) { return v == null ? '--' : Number(v).toFixed(decimals); }
+function pctColor(v) { return v >= 0 ? 'green' : 'red'; }
+
+async function refreshStatus() {
+  try {
+    const r = await fetch('/api/status');
+    const d = await r.json();
+    document.getElementById('balance').textContent = fmt(d.balance, 2) + ' USDT';
+    const perf = d.perf || {};
+    const tr = (perf.total_return || 0) * 100;
+    document.getElementById('total-return').className = 'value ' + pctColor(tr);
+    document.getElementById('total-return').textContent = (tr >= 0 ? '+' : '') + fmt(tr, 2) + '%';
+    document.getElementById('sharpe').textContent = fmt(perf.sharpe, 4);
+    document.getElementById('pl-ratio').textContent = fmt(perf.pl_ratio, 4);
+    document.getElementById('win-rate').textContent = fmt((perf.win_rate||0)*100, 1) + '%';
+    document.getElementById('sample-count').textContent = '样本 ' + (perf.samples||0) + ' 笔';
+    document.getElementById('circuit').className = 'value ' + (d.circuit_broken ? 'red' : 'green');
+    document.getElementById('circuit').textContent = d.circuit_broken ? '熔断中' : '正常';
+    const badge = document.getElementById('status-badge');
+    if (d.circuit_broken) { badge.className = 'badge circuit'; badge.textContent = '熔断'; }
+    else if (d.running) { badge.className = 'badge running'; badge.textContent = '运行中'; }
+    else { badge.className = 'badge stopped'; badge.textContent = '离线'; }
+    if (d.last_update) {
+      const ago = Math.round((Date.now()/1000 - d.last_update));
+      document.getElementById('last-update').textContent = `更新于 ${ago}s 前`;
+    }
+  } catch(e) {}
+}
+
+async function refreshPositions() {
+  try {
+    const r = await fetch('/api/positions');
+    const positions = await r.json();
+    document.getElementById('pos-count').textContent = positions.length;
+    const tbody = document.getElementById('positions-table');
+    if (!positions.length) { tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted);text-align:center;">无持仓</td></tr>'; return; }
+    tbody.innerHTML = positions.map(p => {
+      const amt = parseFloat(p.positionAmt);
+      const side = amt > 0 ? 'LONG' : 'SHORT';
+      const upnl = parseFloat(p.unRealizedProfit || 0);
+      return `<tr>
+        <td>${p.symbol}</td>
+        <td><span class="signal-tag signal-${side.toLowerCase()}">${side}</span></td>
+        <td>${Math.abs(amt)}</td>
+        <td>${fmt(p.entryPrice, 4)}</td>
+        <td>${fmt(p.markPrice, 4)}</td>
+        <td class="${pctColor(upnl)}">${upnl >= 0 ? '+' : ''}${fmt(upnl, 4)}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) {}
+}
+
+async function refreshSignals() {
+  try {
+    const r = await fetch('/api/signals');
+    const signals = await r.json();
+    const keys = Object.keys(signals);
+    document.getElementById('signal-count').textContent = keys.length;
+    const tbody = document.getElementById('signals-table');
+    if (!keys.length) { tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted);text-align:center;">无信号</td></tr>'; return; }
+    tbody.innerHTML = keys.map(sym => {
+      const s = signals[sym];
+      return `<tr>
+        <td>${sym}</td>
+        <td><span class="signal-tag signal-${s.side.toLowerCase()}">${s.side}</span></td>
+        <td>${fmt(s.weight*100,1)}%</td>
+        <td style="color:var(--muted);font-size:11px;">${(s.sources||[]).join(', ')}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) {}
+}
+
+async function refreshTrades() {
+  try {
+    const r = await fetch('/api/trades?limit=50');
+    const trades = await r.json();
+    const tbody = document.getElementById('trades-table');
+    if (!trades.length) { tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted);text-align:center;">暂无记录</td></tr>'; return; }
+    tbody.innerHTML = trades.slice(0, 30).map(t => {
+      const pnl = t.pnl_pct != null ? ((t.pnl_pct >= 0 ? '+' : '') + fmt(t.pnl_pct*100,2) + '%') : '--';
+      const pnlClass = t.pnl_pct != null ? pctColor(t.pnl_pct) : '';
+      const ts = t.ts ? t.ts.replace('T',' ').slice(0,16) : '--';
+      return `<tr>
+        <td style="color:var(--muted);font-size:11px;">${ts}</td>
+        <td>${t.action}</td>
+        <td>${t.symbol}</td>
+        <td><span class="signal-tag signal-${(t.side||'').toLowerCase()}">${t.side||'--'}</span></td>
+        <td>${fmt(t.price,4)}</td>
+        <td class="${pnlClass}">${pnl}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) {}
+}
+
+async function refreshEquity() {
+  try {
+    const r = await fetch('/api/equity');
+    const data = await r.json();
+    const labels = data.map((d, i) => i + 1);
+    const values = [];
+    let cumulative = 0;
+    data.forEach(d => { cumulative += (d.pnl_pct || 0) * 100; values.push(parseFloat(cumulative.toFixed(4))); });
+    const ctx = document.getElementById('equity-chart').getContext('2d');
+    if (equityChart) equityChart.destroy();
+    equityChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: '累计收益率 (%)',
+          data: values,
+          borderColor: '#58a6ff',
+          backgroundColor: 'rgba(88,166,255,0.08)',
+          borderWidth: 2,
+          pointRadius: 2,
+          fill: true,
+          tension: 0.3,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { display: false },
+          y: { grid: { color: '#1c2128' }, ticks: { color: '#8b949e', font: {size:11} } }
+        }
+      }
+    });
+  } catch(e) {}
+}
+
+async function refreshAll() {
+  await Promise.all([refreshStatus(), refreshPositions(), refreshSignals(), refreshTrades(), refreshEquity()]);
+}
+
+initConfigForm();
+loadConfig();
+refreshAll();
+setInterval(refreshAll, 10000);
+</script>
+</body>
+</html>

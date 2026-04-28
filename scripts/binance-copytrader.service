@@ -1,0 +1,17 @@
+[Unit]
+Description=Binance Copy Trader Pro
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/binance-copytrader-pro
+ExecStart=/usr/bin/python3 main.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+EnvironmentFile=/opt/binance-copytrader-pro/.env
+
+[Install]
+WantedBy=multi-user.target
